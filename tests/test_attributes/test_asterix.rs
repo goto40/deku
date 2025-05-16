@@ -79,7 +79,7 @@ fn test_variable_length_data_item() {
     #[derive(Debug, PartialEq)]
     struct VariableLengthItem {
         part1: Part1,
-        #[deku(bits = "1", temp, temp_value = "1")]
+        #[deku(bits = "1", temp, temp_value = "if (*part2).is_empty() {0} else {1}")]
         pub part1_fx: u8,
         #[deku(
             skip,
