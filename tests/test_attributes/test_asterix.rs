@@ -72,7 +72,7 @@ fn test_variable_length_data_item() {
         pub sint7_example: i8,
         #[deku(bits = "3")]
         pub uint2_example: u8,
-        #[deku(bits = "1")]
+        #[deku(bits = "1")] // TODO hide! temp?
         pub fx: u8,
     }
     #[deku_derive(DekuRead, DekuWrite)]
