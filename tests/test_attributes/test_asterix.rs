@@ -63,7 +63,7 @@ fn test_variable_length_data_item() {
         #[deku(bits = "17")]
         pub sint17_example: i32,
     }
-    #[derive(Debug, PartialEq, DekuRead, DekuWrite)]
+    #[derive(Debug, PartialEq, Clone, DekuRead, DekuWrite)]
     #[deku(endian = "big", bit_order = "msb")]
     struct Part2 {
         #[deku(bits = "4")]
@@ -72,9 +72,21 @@ fn test_variable_length_data_item() {
         pub sint7_example: i8,
         #[deku(bits = "3")]
         pub uint2_example: u8,
-        #[deku(bits = "1")] // TODO hide! temp?
-        pub fx: u8,
+        #[deku(bits = "1")]
+        fx: u8, // non-pub
     }
+
+    impl Part2 {
+        pub fn new(uint5_example: u8, sint7_example: i8, uint2_example: u8) -> Self {
+            Self {
+                uint5_example,
+                sint7_example,
+                uint2_example,
+                fx: 0,
+            }
+        }
+    }
+
     #[deku_derive(DekuRead, DekuWrite)]
     #[derive(Debug, PartialEq)]
     struct VariableLengthItem {
@@ -85,7 +97,8 @@ fn test_variable_length_data_item() {
             skip,
             cond = "*part1_fx==0",
             default = "Default::default()",
-            until = "|codefx: &Part2| codefx.fx == 0" // TODO: hide fx, automate fx to be set to 0 only for the last element
+            until = "|codefx: &Part2| codefx.fx == 0",
+            update = "self.part2.iter_mut().rev().enumerate().map(|(index, entry)| { entry.fx = if index!=0 {1} else {0}; entry.clone() }).rev().collect::<Vec<_>>()"
         )]
         part2: Vec<Part2>,
     }
@@ -100,7 +113,7 @@ fn test_variable_length_data_item() {
         0xb0,
         0x00,
     ];
-    let decoded = VariableLengthItem::from_bytes((&raw_bytes, 0)).unwrap().1;
+    let mut decoded = VariableLengthItem::from_bytes((&raw_bytes, 0)).unwrap().1;
     assert_eq!(decoded.part1.uint5_example, 4 + 1);
     assert_eq!(decoded.part1.sint9_example, -2);
     assert_eq!(decoded.part1.sint17_example, 7);
@@ -111,4 +124,19 @@ fn test_variable_length_data_item() {
 
     assert_eq!(decoded.part2[0].fx, 1);
     assert_eq!(decoded.part2[1].fx, 0);
+
+    let raw_bytes_reproduced = decoded.to_bytes().unwrap();
+    assert_eq!(raw_bytes_reproduced, raw_bytes);
+
+    decoded.part2.push(Part2::new(0, -1, 3));
+    decoded.part2.push(Part2::new(1, -1, 3));
+    decoded.part2.push(Part2::new(2, -1, 3));
+    decoded.update().unwrap();
+
+    let raw_bytes_produced = decoded.to_bytes().unwrap();
+
+    let decoded2 = VariableLengthItem::from_bytes((&raw_bytes_produced, 0))
+        .unwrap()
+        .1;
+    assert_eq!(decoded, decoded2);
 }
